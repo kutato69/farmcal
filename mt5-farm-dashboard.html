@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MT5 Farm — Profit Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14;
+    --panel:#111823;
+    --panel-2:#0d131b;
+    --border:#212b38;
+    --border-soft:#1a232e;
+    --text:#e7ecf3;
+    --text-dim:#8892a0;
+    --text-faint:#5a6472;
+    --green:#2dd4a0;
+    --green-dim:#173d33;
+    --blue:#4d8dff;
+    --blue-dim:#152238;
+    --amber:#e8a33d;
+    --amber-dim:#3a2c14;
+    --red:#e8546a;
+    --mono:'JetBrains Mono',monospace;
+    --sans:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 15% 0%, #101a26 0%, transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:36px 28px 60px}
+
+  /* header */
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-mark{width:34px;height:34px;border-radius:8px;background:linear-gradient(160deg,var(--green),#1a9e78);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:15px;color:#06140f}
+  .brand h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px}
+  .brand span{display:block;font-size:11.5px;color:var(--text-faint);font-family:var(--mono);letter-spacing:.4px;margin-top:2px}
+  .status{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--text-dim);background:var(--panel);border:1px solid var(--border);padding:8px 14px;border-radius:20px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px var(--green-dim);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* section labels */
+  .section-label{font-family:var(--mono);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--text-faint);margin:0 0 12px 2px;display:flex;align-items:center;gap:8px}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border-soft)}
+
+  /* params panel */
+  .params{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:20px 20px 16px;margin-bottom:32px;
+    display:grid;grid-template-columns:repeat(5,1fr) auto;gap:16px;align-items:end;
+  }
+  .field label{display:block;font-size:11px;font-family:var(--mono);color:var(--text-faint);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px}
+  .field .unit{color:var(--text-faint);font-weight:400}
+  .input-row{position:relative}
+  input[type=number]{
+    width:100%;padding:10px 12px;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);border-radius:8px;font-family:var(--mono);font-size:14px;font-weight:500;
+    -moz-appearance:textfield;
+  }
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  input[type=number]:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim)}
+  button.run{
+    padding:10px 22px;border:0;border-radius:8px;background:var(--green);color:#052018;
+    font-weight:700;font-size:13px;cursor:pointer;font-family:var(--sans);white-space:nowrap;
+    transition:transform .12s ease, background .12s ease;
+  }
+  button.run:hover{background:#3fe0af}
+  button.run:active{transform:scale(.97)}
+
+  /* KPI board */
+  .board{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+  .kpi{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+  .kpi .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;display:block}
+  .kpi .val{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:12px;color:var(--text-dim);margin-top:6px}
+  .kpi.accent-green{border-color:var(--green-dim)}
+  .kpi.accent-green .val{color:var(--green)}
+  .kpi.accent-blue{border-color:var(--blue-dim)}
+  .kpi.accent-blue .val{color:var(--blue)}
+  .kpi.accent-amber{border-color:var(--amber-dim)}
+  .kpi.accent-amber .val{color:var(--amber)}
+
+  /* chart panel */
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:28px}
+  .chart-wrap{position:relative;height:300px}
+  .legend{display:flex;gap:20px;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+  /* table / ledger */
+  .table-scroll{max-height:420px;overflow-y:auto;border-radius:10px;border:1px solid var(--border-soft)}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px}
+  thead th{
+    position:sticky;top:0;background:var(--panel-2);color:var(--text-faint);
+    font-weight:500;letter-spacing:.6px;text-transform:uppercase;font-size:10.5px;
+    padding:11px 14px;text-align:right;border-bottom:1px solid var(--border);
+  }
+  thead th:first-child,td:first-child{text-align:left}
+  tbody td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--border-soft);color:var(--text);font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:var(--panel-2)}
+  td.new-accounts{color:var(--blue)}
+  td.new-accounts.zero{color:var(--text-faint)}
+  td.profit{color:var(--green)}
+
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+
+  @media (max-width:860px){
+    .params{grid-template-columns:repeat(2,1fr)}
+    .board{grid-template-columns:repeat(2,1fr)}
+  }
+
+  /* connection panel */
+  .conn{display:grid;grid-template-columns:1.3fr 1.3fr auto auto;gap:12px;align-items:end;margin-bottom:10px}
+  .conn input[type=text],.conn input[type=password]{
+    width:100%;padding:9px 12px;background:var(--panel-2);border:1px solid var(--border);
+    color:var(--text);border-radius:8px;font-family:var(--mono);font-size:12.5px;
+  }
+  .conn input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-dim)}
+  button.ghost{
+    padding:9px 16px;border:1px solid var(--border);border-radius:8px;background:transparent;
+    color:var(--text-dim);font-family:var(--sans);font-size:12.5px;cursor:pointer;white-space:nowrap;
+  }
+  button.ghost:hover{border-color:var(--text-faint);color:var(--text)}
+  .conn-status{font-family:var(--mono);font-size:11.5px;color:var(--text-faint);margin:0 0 20px 2px}
+  .conn-status.ok{color:var(--green)}
+  .conn-status.err{color:var(--red)}
+
+  /* current position banner */
+  .banner{
+    background:var(--amber-dim);border:1px solid #55411a;border-radius:14px;
+    padding:16px 20px;margin-bottom:28px;display:flex;align-items:center;gap:16px;
+  }
+  .banner .pin{font-size:20px;line-height:1;color:var(--amber)}
+  .banner .body{flex:1}
+  .banner .title{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--amber);margin-bottom:4px}
+  .banner .day{font-size:18px;font-weight:600;font-family:var(--mono)}
+  .banner .note{font-size:13px;color:var(--text-dim);margin-top:4px}
+
+  /* ledger note + pin controls */
+  td.note-cell{text-align:left;min-width:220px}
+  td.note-cell textarea{
+    width:100%;min-height:30px;max-height:80px;resize:vertical;
+    background:transparent;border:1px solid transparent;border-radius:6px;
+    color:var(--text-dim);font-family:var(--sans);font-size:12px;padding:5px 7px;line-height:1.4;
+  }
+  td.note-cell textarea:hover{border-color:var(--border-soft)}
+  td.note-cell textarea:focus{outline:none;border-color:var(--blue);background:var(--panel-2);color:var(--text)}
+  td.mark-cell{text-align:center}
+  button.pin-btn{
+    width:26px;height:26px;border-radius:7px;border:1px solid var(--border);background:transparent;
+    color:var(--text-faint);cursor:pointer;font-size:13px;line-height:1;
+  }
+  button.pin-btn:hover{border-color:var(--amber);color:var(--amber)}
+  button.pin-btn.active{background:var(--amber-dim);border-color:var(--amber);color:var(--amber)}
+  tr.current-row td{background:var(--amber-dim)!important}
+  tr.current-row{box-shadow:inset 3px 0 0 var(--amber)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">Ξ</div>
+      <div>
+        <h1>MT5 farm — profit terminal</h1>
+        <span>COMPOUNDING SIMULATOR / MULTI-ACCOUNT</span>
+      </div>
+    </div>
+    <div class="status"><span class="dot"></span>SIMULATION LIVE</div>
+  </div>
+
+  <div class="section-label">Kết nối dữ liệu (Supabase)</div>
+  <div class="conn">
+    <div class="field">
+      <label>Project URL</label>
+      <input type="text" id="sb-url" placeholder="https://xxxx.supabase.co">
+    </div>
+    <div class="field">
+      <label>Anon public key</label>
+      <input type="password" id="sb-key" placeholder="eyJhbGciOi...">
+    </div>
+    <button class="run" onclick="connectSupabase()">Kết nối</button>
+    <button class="ghost" onclick="disconnectSupabase()">Ngắt kết nối</button>
+  </div>
+  <p class="conn-status" id="conn-status">Chưa kết nối — ghi chú và vị trí hiện tại chỉ lưu tạm trong trình duyệt này.</p>
+
+  <div class="banner" id="banner" style="display:none">
+    <div class="pin">📍</div>
+    <div class="body">
+      <div class="title">Vị trí hiện tại của bạn</div>
+      <div class="day" id="banner-day">Day —</div>
+      <div class="note" id="banner-note"></div>
+    </div>
+  </div>
+
+  <div class="section-label">Parameters</div>
+  <div class="params">
+    <div class="field">
+      <label>Starting accounts</label>
+      <input type="number" id="a" value="10">
+    </div>
+    <div class="field">
+      <label>Capital / account <span class="unit">$</span></label>
+      <input type="number" id="c" value="10">
+    </div>
+    <div class="field">
+      <label>Profit / account / day <span class="unit">$</span></label>
+      <input type="number" id="p" value="2">
+    </div>
+    <div class="field">
+      <label>Simulation length <span class="unit">days</span></label>
+      <input type="number" id="d" value="90">
+    </div>
+    <div class="field">
+      <label>Accounts / VPS</label>
+      <input type="number" id="av" value="10">
+    </div>
+    <div class="input-row">
+      <button class="run" onclick="calc()">Run simulation</button>
+    </div>
+  </div>
+
+  <div class="section-label">Snapshot at day N</div>
+  <div class="board">
+    <div class="kpi accent-blue">
+      <span class="tag">Active accounts</span>
+      <div class="val" id="s1">—</div>
+      <div class="sub">opened across the farm</div>
+    </div>
+    <div class="kpi accent-green">
+      <span class="tag">Daily profit</span>
+      <div class="val" id="s2">—</div>
+      <div class="sub">at final day rate</div>
+    </div>
+    <div class="kpi accent-green">
+      <span class="tag">Total asset value</span>
+      <div class="val" id="s3">—</div>
+      <div class="sub">deployed capital + wallet</div>
+    </div>
+    <div class="kpi accent-amber">
+      <span class="tag">VPS required</span>
+      <div class="val" id="s4">—</div>
+      <div class="sub" id="s4sub">hosting instances</div>
+    </div>
+  </div>
+
+  <div class="section-label">Growth curve</div>
+  <div class="panel">
+    <div class="legend">
+      <span><i style="background:#4d8dff"></i>Accounts</span>
+      <span><i style="background:#2dd4a0"></i>Daily profit ($)</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="ch" role="img" aria-label="Line chart showing account count and daily profit growing over the simulation period"></canvas>
+    </div>
+  </div>
+
+  <div class="section-label">Daily ledger</div>
+  <div class="panel" style="padding:0">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Day</th><th>Accounts</th><th>New</th><th>Wallet</th><th>Daily profit</th><th style="text-align:left">Ghi chú</th><th>Đánh dấu</th></tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+let chart;
+let sb = null;                 // supabase client
+let journey = {};               // day -> { note, is_current }
+let simDays = 90;
+const fmt = n => '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const int = n => n.toLocaleString();
+
+const TABLE = 'mt5_farm_journey';
+
+/* ---------- Supabase connection ---------- */
+function setStatus(msg, kind){
+  const el = document.getElementById('conn-status');
+  el.innerText = msg;
+  el.className = 'conn-status' + (kind ? ' '+kind : '');
+}
+
+async function connectSupabase(){
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  if(!url || !key){ setStatus('Nhập đầy đủ Project URL và Anon key.', 'err'); return; }
+  try{
+    sb = window.supabase.createClient(url, key);
+    const { error } = await sb.from(TABLE).select('day').limit(1);
+    if(error) throw error;
+    localStorage.setItem('mt5_sb_url', url);
+    localStorage.setItem('mt5_sb_key', key);
+    setStatus('Đã kết nối Supabase — ghi chú và vị trí hiện tại sẽ tự lưu.', 'ok');
+    await loadJourney();
+    renderLedgerExtras();
+  }catch(e){
+    setStatus('Không kết nối được: ' + e.message + '. Kiểm tra URL/key và đã tạo bảng "'+TABLE+'" chưa.', 'err');
+    sb = null;
+  }
+}
+
+function disconnectSupabase(){
+  sb = null;
+  localStorage.removeItem('mt5_sb_url');
+  localStorage.removeItem('mt5_sb_key');
+  setStatus('Đã ngắt kết nối — ghi chú và vị trí hiện tại chỉ lưu tạm trong trình duyệt này.', '');
+}
+
+async function loadJourney(){
+  if(!sb) return;
+  const { data, error } = await sb.from(TABLE).select('day, note, is_current');
+  if(error){ setStatus('Lỗi tải dữ liệu: ' + error.message, 'err'); return; }
+  journey = {};
+  (data||[]).forEach(r => { journey[r.day] = { note: r.note || '', is_current: !!r.is_current }; });
+  updateBanner();
+}
+
+async function saveNote(day, note){
+  journey[day] = journey[day] || {};
+  journey[day].note = note;
+  if(!sb) return;
+  await sb.from(TABLE).upsert({ day, note }, { onConflict: 'day' });
+}
+
+async function setCurrentDay(day){
+  Object.keys(journey).forEach(d => { if(journey[d]) journey[d].is_current = false; });
+  journey[day] = journey[day] || {};
+  journey[day].is_current = true;
+  renderLedgerExtras();
+  updateBanner();
+  if(!sb) return;
+  await sb.from(TABLE).update({ is_current: false }).neq('day', -1);
+  await sb.from(TABLE).upsert({ day, is_current: true, note: journey[day].note || '' }, { onConflict: 'day' });
+}
+
+function updateBanner(){
+  const banner = document.getElementById('banner');
+  const currentDay = Object.keys(journey).find(d => journey[d] && journey[d].is_current);
+  if(!currentDay){ banner.style.display = 'none'; return; }
+  banner.style.display = 'flex';
+  document.getElementById('banner-day').innerText = 'Day ' + currentDay + ' / ' + simDays;
+  document.getElementById('banner-note').innerText = (journey[currentDay].note || 'Chưa có ghi chú cho ngày này.');
+}
+
+/* fills in note/pin controls after the base rows are rendered */
+function renderLedgerExtras(){
+  document.querySelectorAll('#tb tr').forEach(tr => {
+    const day = tr.dataset.day;
+    const entry = journey[day] || {};
+    const noteArea = tr.querySelector('textarea');
+    if(noteArea && document.activeElement !== noteArea) noteArea.value = entry.note || '';
+    const pinBtn = tr.querySelector('.pin-btn');
+    if(pinBtn) pinBtn.classList.toggle('active', !!entry.is_current);
+    tr.classList.toggle('current-row', !!entry.is_current);
+  });
+}
+
+/* ---------- simulation ---------- */
+function calc(){
+  let acc = +document.getElementById('a').value;
+  let cost = +document.getElementById('c').value;
+  let pp = +document.getElementById('p').value;
+  let days = +document.getElementById('d').value;
+  let avps = +document.getElementById('av').value;
+  let w = 0;
+  simDays = days;
+
+  const labels=[], accs=[], profits=[];
+  const rows=[];
+
+  for(let i=1;i<=days;i++){
+    let dp = acc*pp;
+    w += dp;
+    let n = Math.floor(w/cost);
+    w -= n*cost;
+    acc += n;
+    rows.push({i, acc, n, w, dp});
+    labels.push(i);
+    accs.push(acc);
+    profits.push(acc*pp);
+  }
+
+  document.getElementById('tb').innerHTML = rows.map(r => {
+    const entry = journey[r.i] || {};
+    return `<tr data-day="${r.i}">
+      <td>${r.i}</td>
+      <td>${int(r.acc)}</td>
+      <td class="new-accounts${r.n===0?' zero':''}">${r.n>0?'+'+r.n:'0'}</td>
+      <td>${fmt(r.w)}</td>
+      <td class="profit">${fmt(r.dp)}</td>
+      <td class="note-cell"><textarea placeholder="Ghi chú cho ngày ${r.i}..." onchange="saveNote(${r.i}, this.value)">${entry.note||''}</textarea></td>
+      <td class="mark-cell"><button class="pin-btn${entry.is_current?' active':''}" title="Đánh dấu đây là vị trí hiện tại" onclick="setCurrentDay(${r.i})">📍</button></td>
+    </tr>`;
+  }).join('');
+
+  renderLedgerExtras();
+  updateBanner();
+
+  document.getElementById('s1').innerText = int(acc);
+  document.getElementById('s2').innerText = fmt(acc*pp);
+  document.getElementById('s3').innerText = fmt(acc*cost + w);
+  const vpsCount = Math.ceil(acc/avps);
+  document.getElementById('s4').innerText = int(vpsCount);
+  document.getElementById('s4sub').innerText = `${vpsCount} instance${vpsCount===1?'':'s'} · ${avps}/VPS`;
+
+  const ctx = document.getElementById('ch');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Accounts', data:accs, borderColor:'#4d8dff', backgroundColor:'rgba(77,141,255,0.08)',
+          borderWidth:2, pointRadius:0, tension:.25, fill:true, yAxisID:'y'
+        },
+        {
+          label:'Daily profit', data:profits, borderColor:'#2dd4a0', backgroundColor:'rgba(45,212,160,0.08)',
+          borderWidth:2, pointRadius:0, tension:.25, fill:true, yAxisID:'y1', borderDash:[4,3]
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{display:false},
+        tooltip:{
+          backgroundColor:'#111823', borderColor:'#212b38', borderWidth:1,
+          titleColor:'#8892a0', bodyColor:'#e7ecf3', titleFont:{family:'JetBrains Mono',size:11},
+          bodyFont:{family:'JetBrains Mono',size:12}, padding:10
+        }
+      },
+      scales:{
+        x:{ grid:{color:'#1a232e'}, ticks:{color:'#5a6472', font:{family:'JetBrains Mono',size:10}, maxTicksLimit:10} },
+        y:{ position:'left', grid:{color:'#1a232e'}, ticks:{color:'#5a6472', font:{family:'JetBrains Mono',size:10}} },
+        y1:{ position:'right', grid:{display:false}, ticks:{color:'#5a6472', font:{family:'JetBrains Mono',size:10}} }
+      }
+    }
+  });
+}
+(function init(){
+  const savedUrl = localStorage.getItem('mt5_sb_url');
+  const savedKey = localStorage.getItem('mt5_sb_key');
+  if(savedUrl) document.getElementById('sb-url').value = savedUrl;
+  if(savedKey) document.getElementById('sb-key').value = savedKey;
+  calc();
+  if(savedUrl && savedKey) connectSupabase();
+})();
+</script>
+</body>
+</html>
